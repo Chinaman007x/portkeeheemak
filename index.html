@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Port คนโหด</title>
+  <style>
+    :root {
+      --bg-deep: #0b0416;
+      --bg-surface: #160626;
+      --bg-panel: #1a0830;
+      --purple-deep: #3b1160;
+      --purple-mid: #6b2c9e;
+      --purple-soft: #c8a0e6;
+      --yellow: #ffd23f;
+      --pink: #ff3b8a;
+      --blue: #5ecbff;
+      --green: #6fffa8;
+      --text: #f4f1fb;
+      --text-muted: #b7a8cf;
+      --text-dim: #7c6a99;
+      --shadow-glow: 0 0 30px rgba(107, 44, 158, 0.45);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+      --ease-in: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --spring: cubic-bezier(0.22, 1.4, 0.4, 1);
+    }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: "Prompt", "Mitr", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .boot {
+      position: fixed; inset: 0; z-index: 500;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 26px; background: var(--bg-deep); opacity: 1;
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+    .boot.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .boot-logo {
+      display: flex; align-items: center; gap: 12px; color: var(--text); letter-spacing: 1px;
+      opacity: 0; transform: translateY(-8px) scale(0.92);
+      animation: bootLogoIn 0.9s var(--ease-out) 0.18s forwards;
+    }
+    .boot-text { font-size: clamp(28px, 6vw, 46px); font-weight: 800; }
+    .boot-bar { width: 220px; max-width: 56vw; height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+    .boot-bar-fill {
+      display: block; height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--purple-deep), var(--pink), var(--yellow));
+      border-radius: 999px; animation: bootFill 1.35s var(--ease-in) 0.5s forwards;
+    }
+    @keyframes bootLogoIn { to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes bootFill { 0% { width: 0%; } 60% { width: 82%; } 92% { width: 98%; } 100% { width: 100%; } }
+    .crown { position: relative; display: inline-block; width: 1.15em; height: 1em; color: var(--yellow); text-align: center; font-weight: 700; vertical-align: middle; }
+    .crown > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .app {
+      position: relative; display: flex; height: 100vh; width: 100vw; background: var(--bg-deep);
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 0.65s var(--ease-out), transform 0.65s var(--ease-out); overflow: hidden;
+    }
+    .app.visible { opacity: 1; transform: translateY(0); }
+    .sidebar {
+      position: relative; width: 232px; flex-shrink: 0; background: var(--bg-surface);
+      border-right: 1px solid rgba(200,160,230,0.12); overflow: hidden;
+      opacity: 0; transform: translateX(-18px);
+      transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out);
+    }
+    .sidebar.in { opacity: 1; transform: translateX(0); }
+    .sidebar-inner { position: relative; display: flex; flex-direction: column; height: 100%; padding: 20px 14px 14px; box-sizing: border-box; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding-bottom: 22px; margin-bottom: 14px; border-bottom: 1px solid rgba(200,160,230,0.16); }
+    .sidebar-title { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .nav-item {
+      position: relative; display: flex; align-items: center; gap: 12px; padding: 11px 12px;
+      color: var(--text-muted); text-decoration: none; font-size: 15px; font-weight: 500;
+      border-radius: var(--radius-sm); background: transparent; border: none; cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.15s var(--spring); text-align: left;
+    }
+    .nav-item .nav-icon { flex-shrink: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.18s ease, transform 0.15s var(--spring); }
+    .nav-item .nav-icon svg { width: 20px; height: 20px; }
+    .nav-item .nav-label { line-height: 1.2; }
+    .nav-item:hover { color: var(--text); background: rgba(200,160,230,0.06); }
+    .nav-item:hover .nav-icon { opacity: 1; transform: scale(1.05); }
+    .nav-item:active .nav-icon { transform: scale(0.94); }
+    .nav-active { background: var(--purple-deep); color: var(--text); font-weight: 600; box-shadow: 0 6px 18px rgba(59,17,96,0.55); }
+    .nav-active .nav-icon { opacity: 1; color: var(--yellow); }
+    .sidebar-graffiti { position: absolute; left: -6px; bottom: -10px; width: calc(100% + 20px); height: 120px; pointer-events: none; overflow: hidden; }
+    .sidebar-graffiti .splash { position: absolute; width: 100%; height: 100%; color: var(--yellow); }
+    .sidebar-graffiti .splash-yellow { color: var(--yellow); opacity: 0.85; bottom: 0; transform: rotate(-6deg); }
+    .sidebar-graffiti .splash-white { color: rgba(255,255,255,0.85); bottom: 18px; transform: rotate(10deg); mix-blend-mode: screen; }
+    .sidebar-graffiti svg { width: 100%; height: 100%; }
+    .main { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+    .header { position: relative; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-between; padding: 16px 22px 18px; gap: 18px; }
+    .header-banner {
+      position: relative; flex: 1; min-width: 0; height: 160px; max-height: 200px;
+      border-radius: var(--radius-lg); overflow: hidden;
+      background: linear-gradient(135deg, #1a0830 0%, #3b1160 60%, #2a0c48 100%);
+      box-shadow: inset 0 0 0 1px rgba(200,160,230,0.08), var(--shadow-glow);
+    }
+    .banner-collage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .collage-layer { position: absolute; inset: 0; }
+    .collage-back { opacity: 0.5; }
+    .collage-splatter { position: absolute; border-radius: 50%; filter: blur(24px); }
+    .splatter-pink { width: 38%; height: 55%; background: var(--pink); top: -10%; right: -8%; opacity: 0.7; filter: blur(48px); }
+    .splatter-yellow { width: 26%; height: 34%; background: var(--yellow); bottom: -8%; left: -6%; opacity: 0.65; filter: blur(32px); }
+    .collage-black { width: 55%; height: 70%; background: #000; top: 0; right: -10%; opacity: 0.45; filter: blur(70px); }
+    .collage-characters { display: flex; align-items: center; justify-content: center; gap: clamp(30px, 8vw, 90px); }
+    .collage-figure { position: relative; color: rgba(255,255,255,0.95); filter: drop-shadow(0 10px 18px rgba(0,0,0,0.5)); }
+    .collage-figure.figure-girl { width: clamp(96px, 16vw, 170px); height: clamp(110px, 19vw, 190px); }
+    .collage-figure.figure-cat { color: var(--yellow); width: clamp(58px, 9vw, 100px); height: clamp(52px, 9vw, 90px); transform: scale(0.95); }
+    .collage-figure .figure-icon { display: block; width: 100%; height: 100%; color: inherit; }
+    .figure-icon svg { width: 100%; height: 100%; }
+    .figure-tag {
+      position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); padding: 2px 10px; border-radius: 999px;
+      font-size: 11px; color: var(--yellow); white-space: nowrap; letter-spacing: 1px; border: 1px solid rgba(255,210,63,0.35);
+    }
+    .collage-text { position: absolute; bottom: 6%; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; color: var(--text); text-shadow: 0 4px 16px rgba(0,0,0,0.75); inset: auto; width: max-content; }
+    .banner-title { font-size: clamp(26px, 5vw, 42px); font-weight: 800; letter-spacing: 1px; background: linear-gradient(90deg, var(--yellow) 20%, var(--pink) 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .header-profile { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .avatar { flex-shrink: 0; width: 46px; height: 46px; border-radius: 50%; color: var(--text); border: 2px solid var(--yellow); box-shadow: 0 0 0 2px rgba(255,210,63,0.25); overflow: hidden; }
+    .avatar svg { width: 100%; height: 100%; }
+    .profile-info { display: flex; flex-direction: column; line-height: 1.25; }
+    .profile-name { font-weight: 700; font-size: 16px; }
+    .profile-role { color: var(--text-muted); font-size: 13px; }
+    .panel {
+      position: relative; flex: 1; margin: 18px 20px 20px; background: var(--bg-panel);
+      border-radius: var(--radius-lg); border: 1px solid rgba(200,160,230,0.08);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(200,160,230,0.06);
+      display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+    }
+    .panel-header { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 14px; flex-shrink: 0; border-bottom: 1px solid rgba(200,160,230,0.06); background: rgba(0,0,0,0.18); }
+    .panel-title-group { display: flex; align-items: center; gap: 10px; }
+    .panel-title-group h2 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: 0.3px; }
+    .panel-controls { display: flex; align-items: center; gap: 8px; }
+    .btn-sort { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid rgba(200,160,230,0.12); padding: 7px 11px; border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background 0.18s ease, color 0.18s ease; }
+    .btn-sort:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .btn-sort .btn-sort-arrow { width: 14px; height: 14px; }
+    .view-toggle { display: inline-flex; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid rgba(200,160,230,0.1); background: rgba(0,0,0,0.25); }
+    .view-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+    .view-btn svg { width: 18px; height: 18px; }
+    .view-btn:not(.view-btn-active):hover { background: rgba(255,255,255,0.06); color: var(--text); }
+    .view-btn-active { background: var(--purple-deep); color: var(--text); box-shadow: 0 0 0 1px var(--purple-mid); }
+    .portfolio-grid { position: relative; flex: 1; margin: 14px; margin-top: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; overflow-y: auto; padding-bottom: 8px; align-content: start; }
+    .portfolio-grid.list { grid-template-columns: 1fr; gap: 10px; }
+    .card { position: relative; display: flex; flex-direction: column; background: rgba(255,255,255,0.03); border-radius: var(--radius-md); border: 1px solid rgba(200,160,230,0.08); overflow: hidden; cursor: pointer; transition: transform 0.2s var(--spring), box-shadow 0.2s ease, border-color 0.2s ease; text-align: left; color: var(--text); font-family: inherit; }
+    .card:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(0,0,0,0.4), 0 0 0 1px rgba(200,160,230,0.15); border-color: rgba(200,160,230,0.22); }
+    .card:active { transform: translateY(-1px) scale(0.99); }
+    .card-media { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: transparent; }
+    .card-media-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.18); }
+    .card-media-bg .media-figure { width: 74%; height: 74%; opacity: 0.9; }
+    .media-figure svg { width: 100%; height: 100%; }
+    .card-badge { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #fff; background: var(--purple-deep); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    .badge-purple { background: #6b2c9e; color: #fff; }
+    .badge-pink { background: var(--pink); }
+    .badge-blue { background: #1d5fa8; color: var(--blue); }
+    .badge-green { background: #1f7a43; color: var(--green); }
+    .card-action { position: absolute; top: 8px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.12); color: var(--text); opacity: 0; transform: scale(0.86); transition: opacity 0.18s ease, transform 0.2s var(--spring), background 0.18s ease; cursor: pointer; }
+    .card-media:hover .card-action { opacity: 1; transform: scale(1); }
+    .card-action-edit { right: 8px; }
+    .card-action-edit svg { width: 14px; height: 14px; }
+    .card-action-edit:hover { background: var(--purple-deep); color: var(--yellow); }
+    .card-action-link { right: 8px; }
+    .card-action-link svg { color: var(--blue); width: 14px; height: 14px; }
+    .card-action-link:hover { background: #1d5fa8; color: #fff; }
+    /* eye/menu in footer: static, always visible */
+    .card-footer .card-action { position: static; opacity: 1; transform: none; width: auto; min-width: 26px; padding: 0 8px; border-radius: 999px; height: 26px; }
+    .card-footer .card-action-menu { width: 26px; padding: 0; }
+    .card-action-eye svg { width: 13px; height: 13px; }
+    .card-action-eye .card-eye-count { margin-left: 4px; font-size: 12px; font-weight: 700; }
+    .card-action-eye:hover { background: #3a1a52; color: var(--purple-soft); }
+    .card-action-menu svg { width: 14px; height: 14px; }
+    .card-action-menu:hover { background: #2a0c48; color: var(--yellow); }
+    .card-body { flex: 1; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .card-title { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.25; }
+    .card-type { display: block; color: var(--text-muted); font-weight: 500; font-size: 12px; }
+    .card-meta { display: flex; gap: 10px; color: var(--text-dim); font-size: 12px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 0 12px 10px; color: var(--text-muted); }
+    .card-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; background: transparent; border: 2px dashed rgba(200,160,230,0.4); color: var(--text-muted); cursor: pointer; outline: none; padding: 14px 8px; transition: background 0.2s ease, border-color 0.2s var(--spring), color 0.2s ease; }
+    .card-add:hover { background: rgba(255,210,63,0.05); border-color: rgba(255,210,63,0.7); color: var(--text); transform: translateY(-4px) scale(1.01); box-shadow: 0 8px 22px rgba(255,210,63,0.15); }
+    .card-add:focus-visible { outline: 2px solid var(--yellow); outline-offset: 3px; border-color: var(--yellow); }
+    .card-add-badge { width: 42px; height: 42px; border-radius: 50%; background: var(--yellow); color: #1a0830; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 22px rgba(255,210,63,0.5); transition: transform 0.25s var(--spring), box-shadow 0.2s ease; }
+    .card-add-badge svg { width: 24px; height: 24px; }
+    .card-add:hover .card-add-badge { transform: scale(1.12); box-shadow: 0 0 30px rgba(255,210,63,0.8); }
+    .card-add-content { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .card-add-title { font-size: 14px; font-weight: 800; color: var(--text); }
+    .card-add-sub { font-size: 11px; color: var(--text-dim); line-height: 1.35; }
+    .card-add-star { color: var(--yellow); opacity: 0.7; transition: opacity 0.2s ease, transform 0.5s var(--spring); }
+    .card-add-star svg { width: 22px; height: 22px; }
+    .card-add:hover .card-add-star { opacity: 1; transform: rotate(20deg) scale(1.1); }
+    .overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .overlay[hidden] { display: none; }
+    .overlay-backdrop { position: absolute; inset: 0; background: radial-gradient(120% 80% at 30% 20%, rgba(59,17,96,0.55), transparent 60%), radial-gradient(110% 70% at 90% 80%, rgba(255,59,138,0.25), transparent 55%), rgba(8,2,18,0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+    .modal { position: relative; z-index: 1; width: 100%; max-width: 920px; max-height: 90vh; display: flex; flex-direction: column; gap: 14px; }
+    .modal-glass { position: relative; background: rgba(22,6,38,0.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: var(--radius-lg); border: 1px solid rgba(200,160,230,0.22); box-shadow: 0 30px 70px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,210,63,0.15); overflow: auto; padding: 20px 24px 22px; opacity: 0; transform: scale(0.94) translateY(12px); transition: opacity 0.35s var(--ease-out), transform 0.35s var(--spring); }
+    .overlay:not([hidden]) .modal-glass { opacity: 1; transform: scale(1) translateY(0); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(200,160,230,0.12); margin-bottom: 14px; }
+    .modal-title-group { display: flex; align-items: center; gap: 10px; }
+    .modal-header h2 { margin: 0; font-size: 20px; font-weight: 800; }
+    .modal-close { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(200,160,230,0.25); background: rgba(0,0,0,0.3); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.18s ease, transform 0.15s var(--spring), border-color 0.18s ease; }
+    .modal-close:hover { background: var(--purple-deep); color: var(--yellow); border-color: rgba(255,210,63,0.4); }
+    .modal-close:active { transform: scale(0.93); }
+    .modal-close svg { width: 18px; height: 18px; }
+    .modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; flex: 1; }
+    .modal-col-left, .modal-col-right { display: flex; flex-direction: column; gap: 16px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; }
+    .upload-box { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 16px 14px; border: 2px dashed rgba(200,160,230,0.3); border-radius: var(--radius-sm); background: rgba(255,255,255,0.02); cursor: pointer; transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s var(--spring); color: var(--text-muted); min-height: 110px; }
+    .upload-box:hover { border-color: var(--yellow); background: rgba(255,210,63,0.04); transform: scale(1.01); }
+    .upload-box:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+    .upload-box.drag-over { border-color: var(--pink); background: rgba(255,59,138,0.06); }
+    .upload-icon { width: 34px; height: 34px; color: var(--text-dim); }
+    .upload-icon svg { width: 100%; height: 100%; }
+    .uploadtext { font-size: 13px; font-weight: 600; color: var(--text); }
+    .upload-sub { font-size: 11px; color: var(--text-dim); }
+    .upload-limit { font-size: 11px; color: var(--text-dim); font-style: italic; }
+    .upload-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .field-input, .field-select, .field-textarea { background: rgba(0,0,0,0.32); border: 1px solid rgba(200,160,230,0.15); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; font-family: inherit; padding: 10px 12px; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; box-sizing: border-box; }
+    .field-input::placeholder, .field-textarea::placeholder { color: var(--text-dim); }
+    .field-input:focus, .field-select:focus, .field-textarea:focus { border-color: var(--purple-mid); box-shadow: 0 0 0 3px rgba(107,44,158,0.25); }
+    .field-input, .field-textarea { width: 100%; min-height: 44px; }
+    .field-select { width: 100%; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8a0e6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; padding-right: 34px; cursor: pointer; }
+    .field-select option { background: #1a0830; color: var(--text); }
+    .field-select-wrap { position: relative; }
+    .field-select-wrap .field-select-arrow { display: none; }
+    .field-textarea { resize: vertical; min-height: 88px; }
+    .preview-label { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; }
+    .preview-box { position: relative; border-radius: var(--radius-sm); background: rgba(0,0,0,0.4); border: 1px dashed rgba(200,160,230,0.2); min-height: 160px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: var(--text-dim); }
+    .preview-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .preview-placeholder svg { width: 36px; height: 36px; opacity: 0.7; }
+    .preview-text { font-size: 12px; }
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { background: rgba(255,210,63,0.12); color: var(--yellow); border: 1px solid rgba(255,210,63,0.25); padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px; }
+    .btn { padding: 11px 20px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background 0.18s ease, color 0.18s ease, transform 0.15s var(--spring); border: 1px solid transparent; }
+    .btn:active { transform: scale(0.97); }
+    .btn-ghost { background: rgba(255,255,255,0.04); color: var(--text-muted); border-color: rgba(200,160,230,0.15); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+    .btn-primary { background: var(--text); color: var(--bg-deep); border-color: var(--text); }
+    .btn-primary:hover:not(:disabled) { background: var(--yellow); color: #1a0830; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    @media (max-width: 980px) {
+      .sidebar { width: 72px; }
+      .sidebar-inner { padding: 16px 10px; }
+      .sidebar-title, .nav-item .nav-label, .sidebar-graffiti { display: none; }
+      .nav-item { justify-content: center; padding: 12px 0; }
+      .sidebar-logo { justify-content: center; padding-bottom: 18px; }
+      .panel { margin: 12px; }
+      .portfolio-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    }
+    @media (max-width: 640px) {
+      .header { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+      .header-banner { height: 140px; }
+      .header-profile { align-self: flex-end; }
+      .portfolio-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 10px 8px; }
+      .card-add { padding: 10px 6px; }
+      .modal-body { grid-template-columns: 1fr; gap: 16px; }
+      .modal-glass { padding: 16px; }
+      .overlay { padding: 12px; align-items: flex-end; }
+      .modal { max-height: 88vh; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; transition-delay: 0s !important; }
+      .boot-logo { animation: none; opacity: 1; transform: none; }
+      .boot-bar-fill { animation: none; width: 100%; }
+      .app, .sidebar, .modal-glass { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="boot" id="boot" aria-hidden="true">
+    <div class="boot-logo">
+      <span class="crown" aria-hidden="true">
+        <svg viewBox="0 0 40 30" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+          <path d="M3 27 L10 11 L18 20 L26 11 L37 27 Z"/>
+          <path d="M10 11 L18 20 L26 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <rect x="12" y="20" width="4" height="8" fill="currentColor"/>
+          <rect x="24" y="20" width="4" height="8" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="boot-text">Port คนโหด</span>
+    </div>
+    <div class="boot-bar" aria-hidden="true"><span class="boot-bar-fill" id="bootBarFill"></span></div>
+  </div>
+
+  <div class="app" id="app" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-inner">
+        <div class="sidebar-logo">
+          <span class="crown" aria-hidden="true">
+            <svg viewBox="0 0 40 30" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+              <path d="M3 27 L10 11 L18 20 L26 11 L37 27 Z"/>
+              <path d="M10 11 L18 20 L26 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <rect x="12" y="20" width="4" height="8" fill="currentColor"/>
+              <rect x="24" y="20" width="4" height="8" fill="currentColor"/>
+            </svg>
+          </span>
+          <span class="sidebar-title">Port คนโหด</span>
+        </div>
+        <nav class="sidebar-nav" aria-label="เมนูหลัก">
+          <a href="#" class="nav-item nav-active" data-page="home">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+            <span class="nav-label">หน้าหลัก</span>
+          </a>
+          <a href="#" class="nav-item" data-page="manage">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="nav-label">จัดการผลงาน</span>
+          </a>
+          <a href="#" class="nav-item" data-page="ai">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></span>
+            <span class="nav-label">AI วิเคราะห์</span>
+          </a>
+          <a href="#" class="nav-item" data-page="templates">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span>
+            <span class="nav-label">เทมเพลต</span>
+          </a>
+          <a href="#" class="nav-item" data-page="stats">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+            <span class="nav-label">สถิติ</span>
+          </a>
+          <a href="#" class="nav-item" data-page="settings">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span>
+            <span class="nav-label">ตั้งค่า</span>
+          </a>
+        </nav>
+        <div class="sidebar-graffiti" aria-hidden="true">
+          <svg class="splash splash-yellow" viewBox="0 0 120 80" preserveAspectRatio="none">
+            <path d="M-10 70 Q 20 20 60 30 T 130 50 L 120 80 L -10 80 Z" fill="currentColor" opacity="0.55"/>
+            <path d="M-10 80 Q 30 40 80 60 T 130 20 L 120 80 L -10 80 Z" fill="currentColor" opacity="0.35"/>
+          </svg>
+          <svg class="splash splash-white" viewBox="0 0 120 80" preserveAspectRatio="none">
+            <path d="M-10 50 Q 40 10 100 30 T 130 60 L 120 80 L -10 80 Z" fill="currentColor" opacity="0.25"/>
+          </svg>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main" id="main">
+      <header class="header">
+        <div class="header-banner">
+          <div class="banner-collage" aria-hidden="true">
+            <div class="collage-layer collage-back">
+              <div class="collage-splatter splatter-pink"></div>
+              <div class="collage-splatter splatter-yellow"></div>
+              <div class="collage-splatter collage-black"></div>
+            </div>
+            <div class="collage-layer collage-characters">
+              <div class="collage-figure figure-girl">
+                <span class="figure-icon" aria-hidden="true">
+                  <svg viewBox="0 0 120 150" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+                    <circle cx="60" cy="32" r="22" />
+                    <path d="M22 148 Q22 90 40 72 Q50 64 60 64 Q70 64 80 72 Q98 90 98 148 Z"/>
+                    <path d="M48 40 Q60 30 72 40 Q70 44 60 44 Q50 44 48 40 Z" fill="currentColor" opacity="0.85"/>
+                  </svg>
+                </span>
+                <span class="figure-tag">คนโหด</span>
+              </div>
+              <div class="collage-figure figure-cat">
+                <span class="figure-icon" aria-hidden="true">
+                  <svg viewBox="0 0 80 70" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+                    <path d="M12 60 Q12 28 40 22 Q68 28 68 60 Q50 68 40 68 Q30 68 12 60 Z"/>
+                    <circle cx="30" cy="32" r="4" fill="#fff"/>
+                    <circle cx="50" cy="32" r="4" fill="#fff"/>
+                    <path d="M30 44 Q40 50 50 44" stroke="#fff" stroke-width="2" fill="none"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <div class="collage-layer collage-text">
+              <span class="crown" aria-hidden="true">
+                <svg viewBox="0 0 40 30" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+                  <path d="M3 27 L10 11 L18 20 L26 11 L37 27 Z"/>
+                  <path d="M10 11 L18 20 L26 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <rect x="12" y="20" width="4" height="8" fill="currentColor"/>
+                  <rect x="24" y="20" width="4" height="8" fill="currentColor"/>
+                </svg>
+              </span>
+              <span class="banner-title">Port คนโหด</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-profile">
+          <span class="avatar" aria-hidden="true">
+            <svg viewBox="0 0 64 64" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+              <circle cx="32" cy="32" r="32" fill="#3b1160"/>
+              <circle cx="32" cy="24" r="11"/>
+              <path d="M12 62 Q12 36 32 32 Q52 36 52 62 Z"/>
+            </svg>
+          </span>
+          <div class="profile-info">
+            <span class="profile-name">หนูแฮมเตอร์</span>
+            <span class="profile-role">มัธยม67</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="panel" id="portfolioPanel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <span class="crown" aria-hidden="true">
+              <svg viewBox="0 0 40 30" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+                <path d="M3 27 L10 11 L18 20 L26 11 L37 27 Z"/>
+                <path d="M10 11 L18 20 L26 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="12" y="20" width="4" height="8" fill="currentColor"/>
+                <rect x="24" y="20" width="4" height="8" fill="currentColor"/>
+              </svg>
+            </span>
+            <h2>ผลงานของฉัน</h2>
+          </div>
+          <div class="panel-controls">
+            <button class="btn-sort" id="btnSort" aria-label="เลือกลำดับการเรียง">
+              เรียงตามล่าสุด
+              <svg class="btn-sort-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="view-toggle" role="group" aria-label="เปลี่ยนมุมมอง">
+              <button class="view-btn view-btn-active" data-view="grid" aria-label="ดูแบบกริด">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              </button>
+              <button class="view-btn" data-view="list" aria-label="ดูแบบแถว">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="portfolio-grid" id="portfolioGrid">
+          <button class="card card-add" id="cardAdd" data-action="add" aria-label="เพิ่มผลงานใหม่">
+            <span class="card-add-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+            <div class="card-add-content">
+              <span class="card-add-title">เพิ่มผลงานใหม่</span>
+              <span class="card-add-sub">อัปโหลดผลงานของคุณ<br>ได้ที่นี่เลย!</span>
+            </div>
+            <span class="card-add-star" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.39 5.57 5.57 2.39-4.13 4.13 1.1 6.03L12 17.27l-5.26 2.53L6.36 15.5 2.23 17.4 12 22l9.77-4.6 5.14 2.87-4.13 4.13L12 14.38l-5.57 2.39L12 2z"/></svg></span>
+          </button>
+
+          <article class="card" tabindex="0" aria-label="ทิศทางของหัวใจ Short Film">
+            <div class="card-media">
+              <span class="card-badge badge-purple">วิดีโอ/ภาพยนตร์</span>
+              <span class="card-action card-action-edit" aria-hidden="true" title="แก้ไข"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+              <div class="card-media-bg" aria-hidden="true"><span class="media-figure"><svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" fill="currentColor"><rect width="120" height="90" fill="currentColor" opacity="0.25"/><circle cx="60" cy="40" r="22" fill="currentColor" opacity="0.85"/><path d="M20 90 Q20 50 60 40 Q100 50 100 90 Z" fill="currentColor" opacity="0.85"/></svg></span></div>
+            </div>
+            <div class="card-body"><h3 class="card-title">ทิศทางของหัวใจ<br><span class="card-type">(Short Film)</span></h3></div>
+            <div class="card-footer">
+              <span class="card-action card-action-eye" aria-label="ดู 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span class="card-eye-count">0</span></span>
+              <span class="card-action card-action-menu" aria-label="เมนู" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></span>
+            </div>
+          </article>
+
+          <article class="card" tabindex="0" aria-label="โปสเตอร์กิจกรรม ค่ายหลังเลนส์">
+            <div class="card-media">
+              <span class="card-badge badge-pink">กราฟิกดีไซน์</span>
+              <span class="card-action card-action-edit" aria-hidden="true" title="แก้ไข"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+              <div class="card-media-bg" aria-hidden="true"><span class="media-figure"><svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" fill="currentColor"><rect width="120" height="90" fill="currentColor" opacity="0.18"/><circle cx="60" cy="38" r="20" fill="currentColor" opacity="0.8"/><path d="M22 90 Q22 52 60 44 Q98 52 98 90 Z" fill="currentColor" opacity="0.8"/></svg></span></div>
+            </div>
+            <div class="card-body"><h3 class="card-title">โปสเตอร์กิจกรรม<br><span class="card-type">(ค่ายหลังเลนส์)</span></h3></div>
+            <div class="card-footer">
+              <span class="card-action card-action-eye" aria-label="ดู 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span class="card-eye-count">0</span></span>
+              <span class="card-action card-action-menu" aria-label="เมนู" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></span>
+            </div>
+          </article>
+
+          <article class="card" tabindex="0" aria-label="MV รักติดไซเรน ตารางธาตุ">
+            <div class="card-media">
+              <span class="card-badge badge-blue">MV</span>
+              <span class="card-action card-action-edit" aria-hidden="true" title="แก้ไข"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span>
+              <div class="card-media-bg" aria-hidden="true"><span class="media-figure"><svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" fill="currentColor"><defs><linearGradient id="bgCity" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity="0.45"/><stop offset="1" stop-color="currentColor" stop-opacity="0.15"/></linearGradient></defs><rect width="120" height="90" fill="url(#bgCity)"/><circle cx="60" cy="36" r="20" fill="currentColor" opacity="0.85"/><path d="M24 90 Q24 54 60 46 Q96 54 96 90 Z" fill="currentColor" opacity="0.85"/></svg></span></div>
+            </div>
+            <div class="card-body"><h3 class="card-title">MV รักติดไซเรน<br><span class="card-type">(ตารางธาตุ)</span></h3></div>
+            <div class="card-footer">
+              <span class="card-action card-action-eye" aria-label="ดู 0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span class="card-eye-count">0</span></span>
+              <span class="card-action card-action-menu" aria-label="เมนู" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></span>
+            </div>
+          </article>
+
+          <article class="card" tabindex="0" aria-label="ภาพวาด Illustration 20 ม.ค. 2568">
+            <div class="card-media">
+              <span class="card-badge badge-green">อื่นๆ</span>
+              <span class="card-action card-action-link" aria-hidden="true" title="สำเนาลิงก์"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <div class="card-media-bg" aria-hidden="true"><span class="media-figure"><svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" fill="currentColor" opacity="0.85"><circle cx="60" cy="34" r="18"/><path d="M24 90 Q24 52 60 44 Q96 52 96 90 Z"/></svg></span></div>
+            </div>
+            <div class="card-body">
+              <h3 class="card-title">ภาพวาด / Illustration</h3>
+              <div class="card-meta"><span>20 ม.ค. 2568</span><span>20 ม.ค.</span></div>
+            </div>
+            <div class="card-footer">
+              <span class="card-action card-action-eye" aria-label="ดู 124"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span class="card-eye-count">124</span></span>
+              <span class="card-action card-action-menu" aria-label="เมนู" role="button" tabindex="0"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></span>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay-backdrop" id="overlayBackdrop" aria-hidden="true"></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-glass">
+        <header class="modal-header">
+          <div class="modal-title-group">
+            <span class="crown" aria-hidden="true">
+              <svg viewBox="0 0 40 30" preserveAspectRatio="xMidYMid meet" fill="currentColor">
+                <path d="M3 27 L10 11 L18 20 L26 11 L37 27 Z"/>
+                <path d="M10 11 L18 20 L26 11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="12" y="20" width="4" height="8" fill="currentColor"/>
+                <rect x="24" y="20" width="4" height="8" fill="currentColor"/>
+              </svg>
+            </span>
+            <h2 id="modalTitle">เพิ่มผลงานใหม่</h2>
+          </div>
+          <button class="modal-close" id="modalClose" aria-label="ปิด">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+        <div class="modal-body">
+          <div class="modal-col-left">
+            <div class="field">
+              <span class="field-label">ไฟล์ผลงาน</span>
+              <div class="upload-box" id="uploadBox" role="button" tabindex="0" aria-label="ลากไฟล์มาที่นี่ หรือคลิกเพื่ออัปโหลด">
+                <span class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+                <span class="uploadtext">ลากไฟล์มาที่นี่ หรือคลิกเพื่ออัปโหลด</span>
+                <span class="upload-sub">รองรับไฟล์ภาพ วิดีโอ และ PDF</span>
+                <span class="upload-limit">(ขนาดไม่เกิน 50MB)</span>
+                <input class="upload-input" id="uploadInput" type="file" accept="image/*,video/*,.pdf" multiple aria-hidden="true" tabindex="-1">
+              </div>
+            </div>
+            <label class="field" for="fieldTitle">
+              <span class="field-label">ชื่อผลงาน</span>
+              <input class="field-input" id="fieldTitle" type="text" placeholder="เช่น Short Film / MV / Illustration" autocomplete="off">
+            </label>
+            <label class="field" for="fieldCategory">
+              <span class="field-label">หมวดหมู่</span>
+              <div class="field-select-wrap">
+                <select class="field-select" id="fieldCategory">
+                  <option value="">เลือกหมวดหมู่</option>
+                  <option value="video">วิดีโอ/ภาพยนตร์</option>
+                  <option value="graphic">กราฟิกดีไซน์</option>
+                  <option value="mv">MV</option>
+                  <option value="illustration">ภาพวาด / Illustration</option>
+                  <option value="other">อื่นๆ</option>
+                </select>
+              </div>
+            </label>
+            <label class="field" for="fieldDesc">
+              <span class="field-label">คำอธิบายผลงาน</span>
+              <textarea class="field-textarea" id="fieldDesc" placeholder="เขียนรายละเอียดของผลงาน..." rows="4"></textarea>
+            </label>
+          </div>
+          <div class="modal-col-right">
+            <span class="preview-label">ตัวอย่างผลงาน</span>
+            <div class="preview-box" aria-hidden="true">
+              <span class="preview-placeholder"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M24 4 L44 24 L24 44 L4 24 Z"/><circle cx="24" cy="24" r="4"/><path d="M24 12 L24 36"/><path d="M12 24 L36 24"/></svg></span>
+              <span class="preview-text">ยังไม่มีไฟล์</span>
+            </div>
+            <span class="preview-label">แท็ก (ถ้ามี)</span>
+            <div class="tag-list" id="tagList"><span class="tag">#film</span><span class="tag">#edit</span><span class="tag">#art</span></div>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button class="btn btn-ghost" id="btnCancel">ยกเลิก</button>
+          <button class="btn btn-primary" id="btnSave" disabled>บันทึก</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+      var boot = document.getElementById('boot');
+      var app = document.getElementById('app');
+      var sidebar = document.getElementById('sidebar');
+      var portfolioGrid = document.getElementById('portfolioGrid');
+      var cardAdd = document.getElementById('cardAdd');
+      var overlay = document.getElementById('overlay');
+      var backdrop = document.getElementById('overlayBackdrop');
+      var modal = document.getElementById('modal');
+      var modalClose = document.getElementById('modalClose');
+      var btnCancel = document.getElementById('btnCancel');
+      var btnSave = document.getElementById('btnSave');
+      var fieldTitle = document.getElementById('fieldTitle');
+      var uploadBox = document.getElementById('uploadBox');
+      var uploadInput = document.getElementById('uploadInput');
+      var btnSort = document.getElementById('btnSort');
+      var viewToggles = document.querySelectorAll('.view-btn');
+      var lastFocused = null;
+      var started = false;
+
+      function startApp() {
+        if (started) return;
+        started = true;
+        app.hidden = false;
+        requestAnimationFrame(function () {
+          app.classList.add('visible');
+          sidebar.classList.add('in');
+        });
+        setTimeout(function () {
+          boot.classList.add('hidden');
+          boot.setAttribute('aria-hidden', 'true');
+        }, 300);
+      }
+
+      function init() {
+        // เริ่มแอปหลัง boot bar วิ่งจบ (~1.9s)
+        setTimeout(startApp, 2000);
+
+        var navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(function (item) {
+          item.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            navItems.forEach(function (n) { n.classList.remove('nav-active'); });
+            item.classList.add('nav-active');
+          });
+        });
+
+        viewToggles.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var mode = btn.getAttribute('data-view');
+            viewToggles.forEach(function (b) { b.classList.remove('view-btn-active'); });
+            btn.classList.add('view-btn-active');
+            portfolioGrid.classList.toggle('list', mode === 'list');
+          });
+        });
+
+        btnSort.addEventListener('click', function () {
+          var next = (btnSort.textContent.trim() === 'เรียงตามล่าสุด') ? 'เรียงตามชื่อ' : 'เรียงตามล่าสุด';
+          btnSort.innerHTML = next + '<svg class="btn-sort-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+        });
+
+        cardAdd.addEventListener('click', openModal);
+        modalClose.addEventListener('click', closeModal);
+        btnCancel.addEventListener('click', closeModal);
+        btnSave.addEventListener('click', saveModal);
+        backdrop.addEventListener('click', closeModal);
+        document.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Escape' && !overlay.hidden) closeModal();
+        });
+
+        document.querySelectorAll('.card-action-menu').forEach(function (el) {
+          el.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            var card = el.closest('.card');
+            var t = card && card.querySelector('.card-title');
+            var title = t ? t.textContent.replace(/\s+/g, ' ').trim() : '';
+            alert('เมนูสำหรับ: ' + (title || 'ผลงานนี้'));
+          });
+        });
+        document.querySelectorAll('.card-action-edit').forEach(function (el) {
+          el.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            alert('ปุ่มแก้ไข — จะเปิดหน้าแก้ไขผลงาน');
+          });
+        });
+
+        uploadInput.addEventListener('click', function (e) { e.stopPropagation(); });
+        uploadInput.addEventListener('change', function () {
+          if (uploadInput.files && uploadInput.files.length) renderUploaded(uploadInput.files);
+        });
+        uploadBox.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); uploadInput.click(); }
+        });
+        uploadBox.addEventListener('dragover', function (ev) { ev.preventDefault(); uploadBox.classList.add('drag-over'); });
+        uploadBox.addEventListener('dragleave', function () { uploadBox.classList.remove('drag-over'); });
+        uploadBox.addEventListener('drop', function (ev) {
+          ev.preventDefault();
+          uploadBox.classList.remove('drag-over');
+          var files = ev.dataTransfer && ev.dataTransfer.files;
+          if (files && files.length) renderUploaded(files);
+        });
+
+        function renderUploaded(files) {
+          var first = files[0];
+          uploadBox.querySelector('.uploadtext').textContent = files.length + ' ไฟล์';
+          uploadBox.querySelector('.upload-sub').textContent = first ? first.name : 'รองรับไฟล์ภาพ วิดีโอ และ PDF';
+          var limitEl = uploadBox.querySelector('.upload-limit');
+          var sizeMB = first ? first.size / (1024 * 1024) : 0;
+          limitEl.textContent = sizeMB > 50 ? '(เกินขนาดที่กำหนด)' : '(ขนาดไม่เกิน 50MB)';
+          limitEl.style.color = sizeMB > 50 ? '#ff8a9e' : '';
+        }
+
+        function openModal() {
+          lastFocused = document.activeElement;
+          overlay.hidden = false;
+          setTimeout(function () { fieldTitle.focus(); }, 60);
+        }
+        function closeModal() {
+          overlay.hidden = true;
+          if (lastFocused && lastFocused.focus) { try { lastFocused.focus(); } catch (e) {} }
+        }
+        function saveModal() {
+          var title = (fieldTitle.value || '').trim();
+          if (!title) { alert('กรุณาตั้งชื่อผลงานก่อนบันทึก'); fieldTitle.focus(); return; }
+          alert('บันทึกผลงาน "' + title + '" เรียบร้อย (จำลอง)');
+          closeModal();
+        }
+        function updateSaveButton() {
+          btnSave.disabled = !(fieldTitle.value && fieldTitle.value.trim());
+        }
+        fieldTitle.addEventListener('input', updateSaveButton);
+
+        modal.addEventListener('keydown', function (ev) {
+          if (ev.key !== 'Tab') return;
+          var f = Array.prototype.slice.call(modal.querySelectorAll('button:not([disabled]), input:not([tabindex="-1"]), select, textarea, [tabindex]:not([tabindex="-1"])')).filter(function (el) { return el.offsetParent !== null; });
+          if (!f.length) return;
+          var first = f[0], last = f[f.length - 1];
+          if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+          else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+        });
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+    })();
+  </script>
+</body>
+</html>
