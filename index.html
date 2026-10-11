@@ -273,6 +273,13 @@ svg{display:block}
 .tipbox ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}.tipbox li{margin:3px 0}
 .expert{border-radius:var(--r-md);padding:12px 14px;border:2px dashed var(--yellow);background:rgba(255,225,77,.06);font-size:13px;color:#ffeaa0}
 .expert b{color:var(--yellow)}
+.seen{border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;background:rgba(0,0,0,.25)}
+.seen h4{margin:0 0 10px;font-size:14px;color:var(--cyan)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.sw{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.sw i{width:26px;height:26px;border-radius:7px;border:1px solid rgba(255,255,255,.3);display:block}
+.sw span{display:flex;flex-direction:column;line-height:1.2}.sw small{color:var(--dim);font-size:11px}
+.facts{display:flex;gap:6px;flex-wrap:wrap}
 .mock-tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(77,243,255,.14);color:var(--cyan);border:1px solid rgba(77,243,255,.4);margin-left:8px;vertical-align:middle}
 
 /* templates + stats + settings */
@@ -486,7 +493,7 @@ body.calm .reveal{opacity:1;transform:none}
     <!-- ===== AI ===== -->
     <section class="page" data-page="ai" aria-label="AI วิเคราะห์">
       <section class="panel">
-        <div class="panel-head"><h2><span class="crown" data-crown></span>AI วิเคราะห์พอร์ต<span class="mock-tag">โหมดจำลอง</span></h2></div>
+        <div class="panel-head"><h2><span class="crown" data-crown></span>AI วิเคราะห์พอร์ต<span class="mock-tag">วัดจากภาพจริง</span></h2></div>
         <div class="panel-body">
           <div class="disclaimer"><span data-i="warn"></span><div><b>AI ให้คำแนะนำเบื้องต้นด้านการดีไซน์/การจัดวางเท่านั้น</b> ส่วนเนื้อหาและความถูกต้องของผลงาน ควรให้ครูหรือผู้เชี่ยวชาญตรวจอีกครั้ง</div></div>
           <div class="two">
@@ -859,9 +866,12 @@ function handleFile(file){
   if(!file) return; const lim=$('#upLimit');
   if(file.size>50*1024*1024){ lim.textContent='(เกินขนาดที่กำหนด 50MB)'; lim.style.color='#ff8a9e'; return; }
   lim.textContent='(ขนาดไม่เกิน 50MB)'; lim.style.color=''; $('#upText').textContent='เลือกแล้ว 1 ไฟล์'; $('#upSub').textContent=file.name;
-  const pv=$('#preview');
+  const pv=$('#preview'); state.pending=null;
   if(file.type.startsWith('image/')){ const u=URL.createObjectURL(file); state.pending=u; pv.innerHTML=`<img src="${u}" alt="ตัวอย่าง">`; }
-  else if(file.type.startsWith('video/')){ const u=URL.createObjectURL(file); pv.innerHTML=`<video src="${u}" muted controls playsinline></video>`; }
+  else if(file.type.startsWith('video/')){ const u=URL.createObjectURL(file); pv.innerHTML=`<video src="${u}" muted controls playsinline></video>`;
+    const v=document.createElement('video'); v.muted=true; v.playsInline=true; v.preload='auto'; v.src=u;
+    v.addEventListener('loadeddata',()=>{ try{ v.currentTime=Math.min(1,(v.duration||1)/3); }catch(e){} },{once:true});
+    v.addEventListener('seeked',()=>{ try{ const k=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight)), c=document.createElement('canvas'); c.width=Math.round(v.videoWidth*k); c.height=Math.round(v.videoHeight*k); c.getContext('2d').drawImage(v,0,0,c.width,c.height); state.pending=c.toDataURL('image/jpeg',.82); }catch(e){} },{once:true}); }
   else pv.innerHTML=`<span>${esc(file.name)}</span>`;
 }
 function saveForm(){
@@ -881,55 +891,145 @@ function deleteWork(id){
 }
 
 /* ---------- AI (simulated) ---------- */
-function hash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return Math.abs(h); }
-const GOOD={
- video:['ชื่อเรื่องสื่ออารมณ์ของเรื่องได้ชัด','ธีมภาพยนตร์มีทิศทางเดียว ไม่กระจัดกระจาย','การเลือกประเภทผลงานตรงกับเนื้อหา'],
- graphic:['การใช้สีโดดเด่น ดึงสายตาได้ดี','โครงสร้างโปสเตอร์เหมาะกับการสื่อสารกิจกรรม','ชื่อชิ้นงานบอกวัตถุประสงค์ชัดเจน'],
- mv:['คอนเซ็ปต์ธีมชัด จดจำง่าย','เหมาะแก่การโชว์ทักษะตัดต่อและคัลเลอร์','ชื่อผลงานสื่อโทนอารมณ์ได้ดี'],
- illustration:['สไตล์ภาพเป็นเอกลักษณ์ของตัวเอง','เหมาะกับการเล่าบุคลิกและความสนใจ','มีโอกาสต่อยอดเป็นชุดผลงาน (series) ได้'],
- other:['มีความหลากหลาย ช่วยให้พอร์ตดูไม่ซ้ำซาก','ชื่อผลงานกระชับ']
-};
-const FIX={
- video:['ใช้ภาพปก (thumbnail) จากช็อตเด่นที่เห็นอารมณ์ชัด','ระบุความยาวและบทบาทของคุณ เช่น กำกับ/ตัดต่อ/ถ่ายภาพ'],
- graphic:['จัดลำดับขนาดตัวอักษร: หัวเรื่อง > รายละเอียด > ข้อมูลติดต่อ','จำกัดสีหลักไม่เกิน 3 สี เพื่อไม่ให้ภาพรกเกินไป'],
- mv:['ใส่ภาพตัวอย่างหลายช็อตหรือเบื้องหลังประกอบ','อธิบายขั้นตอนทำงาน เช่น คอนเซ็ปต์ → ถ่ายทำ → ตัดต่อ'],
- illustration:['เพิ่มภาพ before/after หรือสเก็ตช์ร่างให้เห็นกระบวนการ','ตรวจสมดุลพื้นที่ว่างรอบตัวละครและจุดโฟกัส'],
- other:['เพิ่มภาพประกอบและคำอธิบายบริบทของผลงาน','จัดผลงานไว้ใกล้หมวดที่เกี่ยวข้องเพื่อให้พอร์ตเป็นระเบียบ']
-};
-function analyze(w){
-  const h=hash(w.title+w.cat), dl=(w.desc||'').length, tg=(w.tags||[]).length;
-  const info=Math.min(95,(dl>=80?88:dl>=40?78:dl>=15?66:50)+(tg>=2?7:0));
-  const m=[['องค์ประกอบ & การจัดวาง',60+h%31],['สี & โทนภาพ',60+(h>>3)%31],['ลำดับความสำคัญของข้อมูล',58+(h>>6)%33],['ความครบถ้วนของคำอธิบาย',info]];
-  const overall=Math.round(m.reduce((a,x)=>a+x[1],0)/m.length);
-  const fix=(FIX[w.cat]||FIX.other).slice();
-  if(dl<40) fix.unshift('เขียนคำอธิบาย 2–3 ประโยค: ที่มา บทบาทของคุณ เครื่องมือที่ใช้');
+/* ===== วิเคราะห์จากพิกเซลของภาพจริง (ทำงานในเบราว์เซอร์ ไม่ส่งภาพออกไปไหน) ===== */
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const ramp=(v,a,b)=>clamp((v-a)/(b-a),0,1);
+function loadImg(src){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('load')); im.src=src; }); }
+function rgb2hsv(r,g,b){ r/=255; g/=255; b/=255; const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; let h=0;
+  if(d){ if(mx===r) h=((g-b)/d)%6; else if(mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0) h+=360; }
+  return [h, mx?d/mx:0, mx]; }
+async function readPixels(src){
+  const im=await loadImg(src), nw=im.naturalWidth, nh=im.naturalHeight; if(!nw||!nh) throw new Error('empty');
+  const sc=Math.min(1,180/Math.max(nw,nh)), W=Math.max(8,Math.round(nw*sc)), H=Math.max(8,Math.round(nh*sc));
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const cx=cv.getContext('2d',{willReadFrequently:true}); cx.fillStyle='#fff'; cx.fillRect(0,0,W,H); cx.drawImage(im,0,0,W,H);
+  return {W,H,nw,nh,data:cx.getImageData(0,0,W,H).data};
+}
+const hex=c=>'#'+c.map(v=>v.toString(16).padStart(2,'0')).join('');
+function measure(p){
+  const {W,H,nw,nh,data}=p, N=W*H, L=new Float32Array(N);
+  let sumL=0,sumS=0,dark=0,bright=0,colored=0,warm=0,cool=0;
+  const buckets=new Map(), hue=new Array(12).fill(0);
+  for(let i=0;i<N;i++){
+    const r=data[i*4], g=data[i*4+1], b=data[i*4+2], y=0.2126*r+0.7152*g+0.0722*b;
+    L[i]=y; sumL+=y; const hsv=rgb2hsv(r,g,b); sumS+=hsv[1];
+    if(y<18) dark++; else if(y>238) bright++;
+    const key=((r>>5)<<6)|((g>>5)<<3)|(b>>5); let o=buckets.get(key);
+    if(!o){ o={n:0,r:0,g:0,b:0}; buckets.set(key,o); } o.n++; o.r+=r; o.g+=g; o.b+=b;
+    if(hsv[1]>.22&&hsv[2]>.2){ colored++; hue[Math.floor(hsv[0]/30)%12]++; if(hsv[0]<70||hsv[0]>=330) warm++; else if(hsv[0]>=170&&hsv[0]<290) cool++; }
+  }
+  const meanL=sumL/N, meanS=sumS/N; let v=0; for(let i=0;i<N;i++){ const d=L[i]-meanL; v+=d*d; } const stdL=Math.sqrt(v/N);
+  const sortedB=[...buckets.values()].sort((a,b)=>b.n-a.n).slice(0,16).map(o=>({share:o.n/N,rgb:[Math.round(o.r/o.n),Math.round(o.g/o.n),Math.round(o.b/o.n)]}));
+  const palette=[]; for(const c of sortedB){ if(palette.every(t=>Math.hypot(t.rgb[0]-c.rgb[0],t.rgb[1]-c.rgb[1],t.rgb[2]-c.rgb[2])>64)) palette.push(c); if(palette.length>=5) break; }
+  const hueFam=colored>N*.03?hue.filter(n=>n/colored>.12).length:0;
+  /* edges (Sobel) */
+  const E=new Float32Array(N); let sumE=0, maxE=0;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const i=y*W+x;
+    const gx=-L[i-W-1]-2*L[i-1]-L[i+W-1]+L[i-W+1]+2*L[i+1]+L[i+W+1], gy=-L[i-W-1]-2*L[i-W]-L[i-W+1]+L[i+W-1]+2*L[i+W]+L[i+W+1];
+    const m=Math.hypot(gx,gy); E[i]=m; sumE+=m; if(m>maxE) maxE=m; }
+  const meanE=sumE/N; let wx=0,wy=0,wsum=0,left=0,right=0,top=0,bot=0,center=0,ring=0,ringN=0,centerN=0,strong=0;
+  const thr=Math.max(meanE*1.6,20);
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const e=E[y*W+x], nx=x/W, ny=y/H;
+    if(e>thr){ wx+=nx*e; wy+=ny*e; wsum+=e; strong++; }
+    if(nx<.5) left+=e; else right+=e; if(ny<.5) top+=e; else bot+=e;
+    if(nx>.25&&nx<.75&&ny>.25&&ny<.75){ center+=e; centerN++; }
+    if(nx<.15||nx>.85||ny<.15||ny>.85){ ring+=e; ringN++; } }
+  const fx=wsum?wx/wsum:.5, fy=wsum?wy/wsum:.5;
+  const thirds=[[1/3,1/3],[2/3,1/3],[1/3,2/3],[2/3,2/3]].reduce((m,t)=>Math.min(m,Math.hypot(fx-t[0],fy-t[1])),9);
+  const cdist=Math.hypot(fx-.5,fy-.5);
+  const lrDiff=(left+right)?Math.abs(left-right)/(left+right):0, tbDiff=(top+bot)?Math.abs(top-bot)/(top+bot):0;
+  const centerShare=sumE?center/sumE:.25;
+  const sortedE=Array.from(E).sort((a,b)=>b-a); let t10=0; const k=Math.floor(N*.1); for(let i=0;i<k;i++) t10+=sortedE[i]; const topShare=sumE?t10/sumE:.1;
+  const detail=strong/N, ringDensity=ringN?ring/ringN:0, centerDensity=centerN?center/centerN:0;
+  return {nw,nh,meanL,meanS,stdL,darkPct:dark/N,brightPct:bright/N,palette,hueFam,warmPct:colored?warm/colored:0,coolPct:colored?cool/colored:0,colored:colored/N,
+    fx,fy,thirds,cdist,lrDiff,tbDiff,centerShare,topShare,detail,ringDensity,centerDensity};
+}
+function scoreImage(m){
+  const pos=Math.max(1-clamp(m.thirds/.3,0,1), (1-clamp(m.cdist/.3,0,1))*.9);
+  const bal=1-clamp((m.lrDiff*.6+m.tbDiff*.4)/.6,0,1);
+  const comp=Math.round(40+60*(.5*pos+.5*bal));
+  const harm=m.hueFam===0?.75:m.hueFam<=3?1:m.hueFam===4?.7:.45;
+  const sat=m.meanS<.2?ramp(m.meanS,0,.2):m.meanS>.7?1-ramp(m.meanS,.7,1)*.8:1;
+  const color=Math.round(40+60*(.55*harm+.45*sat));
+  const con=m.stdL>=45&&m.stdL<=85?1:m.stdL<45?ramp(m.stdL,15,45):1-ramp(m.stdL,85,110)*.5;
+  const br=m.meanL>=60&&m.meanL<=185?1:m.meanL<60?ramp(m.meanL,20,60):1-ramp(m.meanL,185,235);
+  const clip=1-ramp(m.darkPct+m.brightPct,.3,.8)*.6;
+  const tone=Math.round(40+60*(.5*con+.3*br+.2*clip));
+  const focus=Math.round(40+60*(.65*ramp(m.topShare,.12,.45)+.35*ramp(m.centerShare,.25,.6)));
+  return {comp,color,tone,focus,pos,bal};
+}
+const FOCUS_TXT=(x,y)=>{ const h=x<.4?'ซ้าย':x>.6?'ขวา':'กลาง', v=y<.4?'บน':y>.6?'ล่าง':'กลาง'; return h==='กลาง'&&v==='กลาง'?'กึ่งกลางภาพ':(v==='กลาง'?'ค่อนไปทาง'+h:h==='กลาง'?'ค่อนไปทาง'+v:'ค่อนไปทาง'+h+v); };
+function buildTips(m,s,w){
+  const good=[],fix=[], pct=v=>Math.round(v*100);
+  if(s.pos>.65) good.push('จุดสนใจ'+FOCUS_TXT(m.fx,m.fy)+' ตรงกับตำแหน่งที่สายตามองได้ง่าย');
+  if(s.bal>.75) good.push('น้ำหนักภาพซ้าย-ขวาสมดุลดี (ต่างกันเพียง '+pct(m.lrDiff)+'%)');
+  if(m.hueFam>=1&&m.hueFam<=3) good.push('สีหลักมี '+m.hueFam+' กลุ่ม ดูเป็นชุดเดียวกัน ไม่รก');
+  if(m.stdL>=45&&m.stdL<=85) good.push('คอนทราสต์กำลังดี แยกสว่าง-มืดได้ชัด');
+  if(s.focus>=75) good.push('มีจุดที่รายละเอียดเด่นกว่าส่วนอื่นชัดเจน สายตาไม่หลง');
+  if(m.warmPct>.6) good.push('โทนอุ่น ('+pct(m.warmPct)+'% ของสีที่มีสี) ให้อารมณ์ชัด'); else if(m.coolPct>.6) good.push('โทนเย็น ('+pct(m.coolPct)+'% ของสีที่มีสี) ให้อารมณ์ชัด');
+  if(!good.length) good.push('ภาพโหลดและอ่านค่าได้ครบ พร้อมปรับต่อได้ทันที');
+  if(m.meanL<60) fix.push('ภาพค่อนข้างมืด (ความสว่างเฉลี่ย '+Math.round(m.meanL)+'/255) ลองดึงแสงเงาให้เห็นรายละเอียดมากขึ้น');
+  else if(m.meanL>185) fix.push('ภาพค่อนข้างสว่างจ้า (ความสว่างเฉลี่ย '+Math.round(m.meanL)+'/255) ระวังรายละเอียดส่วนสว่างหาย');
+  if(m.stdL<45) fix.push('คอนทราสต์ต่ำ ภาพดูจืดหรือแบน ลองเพิ่มความต่างของสว่าง-มืด');
+  if(m.darkPct+m.brightPct>.35) fix.push('มีพื้นที่ดำสนิทหรือขาวจ้า '+pct(m.darkPct+m.brightPct)+'% ของภาพ เสี่ยงสูญเสียรายละเอียด');
+  if(m.hueFam>=5) fix.push('ใช้สีหลายกลุ่มมาก ('+m.hueFam+' กลุ่ม) ลองลดเหลือ 2–3 สีหลักให้ภาพนิ่งขึ้น');
+  if(m.meanS>.7) fix.push('สีอิ่มจัดมาก ('+pct(m.meanS)+'%) อาจแสบตา ลองลดความอิ่มสีบางส่วน');
+  if(m.colored<.05) fix.push('ภาพเกือบไร้สี (ขาวดำ/เทา) ถ้าไม่ได้ตั้งใจ ลองเพิ่มสีเน้นจุดเดียว');
+  if(s.pos<=.4) fix.push('จุดสนใจ'+FOCUS_TXT(m.fx,m.fy)+' ลองขยับให้ใกล้จุดตัดกฎสามส่วนหรือกึ่งกลางมากขึ้น');
+  if(m.lrDiff>.4) fix.push('ภาพหนักไปทาง'+(m.fx<.5?'ซ้าย':'ขวา')+' ลองเพิ่มองค์ประกอบอีกฝั่งหรือเว้นที่ว่างให้สมดุล');
+  if(s.focus<60) fix.push('รายละเอียดกระจายทั่วภาพ ไม่มีจุดเด่นชัด ลองเน้นจุดโฟกัสด้วยแสง สี หรือขนาด');
+  if(Math.min(m.nw,m.nh)<720) fix.push('ความละเอียดค่อนข้างต่ำ ('+m.nw+'×'+m.nh+' px) ถ้าใช้ในพอร์ตจริงควรใช้ภาพที่ใหญ่กว่านี้');
+  const dl=(w.desc||'').length, tg=(w.tags||[]).length;
+  if(dl<40) fix.push('เขียนคำอธิบาย 2–3 ประโยค: ที่มา บทบาทของคุณ เครื่องมือที่ใช้');
   if(tg<2) fix.push('เพิ่มแท็กอย่างน้อย 2 อัน เพื่อให้ค้นหาและจัดหมวดง่ายขึ้น');
-  if(!w.thumb) fix.push('อัปโหลดภาพปกของผลงาน (พอร์ตที่มีภาพเด่นจะน่าสนใจกว่ามาก)');
-  return {m,overall,good:(GOOD[w.cat]||GOOD.other).slice(0,2),fix:fix.slice(0,4)};
+  if(!fix.length) fix.push('จากค่าที่วัดได้ ยังไม่พบจุดที่ต้องแก้เร่งด่วน ลองให้เพื่อนหรือครูช่วยดูในด้านเนื้อหาต่อ');
+  return {good:good.slice(0,3),fix:fix.slice(0,4)};
+}
+async function analyzeWork(w){
+  if(!w.thumb) return {status:'none'};
+  let m; try{ m=measure(await readPixels(w.thumb)); }catch(e){ return {status:'lost'}; }
+  const s=scoreImage(m), dl=(w.desc||'').length, tg=(w.tags||[]).length;
+  const info=Math.min(95,(dl>=80?88:dl>=40?78:dl>=15?66:50)+(tg>=2?7:0));
+  const meters=[['องค์ประกอบ & การจัดวาง',s.comp],['สี & ความเข้ากันของโทน',s.color],['แสง & คอนทราสต์',s.tone],['จุดโฟกัส',s.focus],['ความครบถ้วนของคำอธิบาย',info]];
+  const overall=Math.round(meters.reduce((a,x)=>a+x[1],0)/meters.length);
+  return {status:'ok',m,meters,overall,...buildTips(m,s,w)};
 }
 let aiTimer=null;
 function resetAiStage(){ clearInterval(aiTimer); const s=$('#aiStage'); s.className='stage center'; s.innerHTML='<div class="sub" style="margin:0">เลือกผลงาน แล้วกด "เริ่มวิเคราะห์"<br>ผลลัพธ์จะแสดงที่นี่</div>'; $('#aiPrev').classList.remove('scanning'); $('#aiStart').disabled=false; }
 function runAi(id){
   const w=byId(id||state.aiId); if(!w){ toast('ยังไม่มีผลงานให้วิเคราะห์'); return; }
   state.aiId=w.id; $('#aiSelect').value=w.id; paintAiPrev();
-  const stage=$('#aiStage'), steps=['กำลังอ่านองค์ประกอบภาพ…','กำลังตรวจสีและโทน…','กำลังดูลำดับข้อมูล…','กำลังสรุปคำแนะนำ…'];
+  const token=state.aiRun=(state.aiRun||0)+1;
+  const stage=$('#aiStage'), steps=['กำลังอ่านภาพจริง…','กำลังตรวจสีและโทน…','กำลังวัดแสงและคอนทราสต์…','กำลังหาจุดโฟกัสและสมดุลภาพ…'];
   stage.className='stage center'; stage.innerHTML='<div class="scan-text" id="scanTxt">'+steps[0]+'</div><div class="scan-bar"><i id="scanBar"></i></div>';
   $('#aiPrev').classList.add('scanning'); $('#aiStart').disabled=true;
+  const job=analyzeWork(w);
   let i=0; const total=calm()?1:steps.length, gap=calm()?150:480;
   clearInterval(aiTimer);
   aiTimer=setInterval(()=>{ i++; const b=$('#scanBar'); if(b) b.style.width=Math.min(100,i/total*100)+'%'; const t=$('#scanTxt'); if(t&&steps[i]) t.textContent=steps[i];
-    if(i>=total){ clearInterval(aiTimer); setTimeout(()=>showAi(w),200); } },gap);
+    if(i>=total){ clearInterval(aiTimer); job.then(res=>{ if(token===state.aiRun) setTimeout(()=>{ if(token===state.aiRun) showAi(w,res); },200); }); } },gap);
   requestAnimationFrame(()=>{ const b=$('#scanBar'); if(b) b.style.width='8%'; });
 }
-function showAi(w){
-  const r=analyze(w), stage=$('#aiStage'); $('#aiPrev').classList.remove('scanning'); $('#aiStart').disabled=false; $('#aiStart').textContent='วิเคราะห์ใหม่ ✦';
+function showAi(w,r){
+  const stage=$('#aiStage'); $('#aiPrev').classList.remove('scanning'); $('#aiStart').disabled=false; $('#aiStart').textContent='วิเคราะห์ใหม่ ✦';
+  const acts=`<div class="controls"><button class="chip-btn" data-act="edit" data-id="${w.id}"><span>${icon('edit')}</span>${r.status==='ok'?'แก้ไขผลงานนี้':'อัปโหลดภาพให้ผลงานนี้'}</button><button class="chip-btn" data-act="goto" data-page="manage"><span>${icon('folder')}</span>ไปจัดการผลงาน</button></div>`;
+  if(r.status!=='ok'){
+    const msg=r.status==='lost'?'ไม่พบไฟล์ภาพของผลงานนี้แล้ว (ภาพที่อัปโหลดจะหายเมื่อรีเฟรชหน้า) กรุณาอัปโหลดใหม่':'ผลงานนี้ยังไม่มีภาพให้ AI ดู จึงยังวิเคราะห์ไม่ได้ (ถ้าเป็น PDF ให้ใช้ภาพหน้าปกแทน)';
+    stage.className='stage center'; stage.innerHTML=`<div class="sub" style="margin:0"><b style="color:var(--yellow)">วิเคราะห์ไม่ได้</b><br>${esc(msg)}</div>${acts}`; return;
+  }
+  const m=r.m, pct=v=>Math.round(v*100);
+  const light=m.meanL<85?'ค่อนข้างมืด':m.meanL>175?'ค่อนข้างสว่าง':'สว่างกลางๆ';
+  const tone=m.colored<.05?'เกือบไร้สี':m.warmPct>m.coolPct+.15?'โทนอุ่น':m.coolPct>m.warmPct+.15?'โทนเย็น':'โทนผสม';
+  const seen=`<div class="seen"><h4>👁 สิ่งที่ AI วัดได้จากภาพนี้</h4>
+    <div class="swatches">${m.palette.map(c=>`<div class="sw"><i style="background:${hex(c.rgb)}"></i><span>${hex(c.rgb)}<small>${Math.max(1,pct(c.share))}%</small></span></div>`).join('')}</div>
+    <div class="facts"><span class="pill">${esc(light)} (${Math.round(m.meanL)}/255)</span><span class="pill">${esc(tone)}</span><span class="pill">คอนทราสต์ ${Math.round(m.stdL)}</span><span class="pill">จุดสนใจ${esc(FOCUS_TXT(m.fx,m.fy))}</span><span class="pill">${m.nw}×${m.nh}px</span></div></div>`;
   stage.className='stage';
   stage.innerHTML=`<div class="result-top"><div class="ring" id="ring" style="--p:0"><div><b id="ringNum">0</b><small>คะแนนรวม</small></div></div>
-    <div class="meters">${r.m.map(x=>`<div class="meter"><label><span>${esc(x[0])}</span><span>${x[1]}</span></label><div class="bar"><i data-w="${x[1]}"></i></div></div>`).join('')}</div></div>
+    <div class="meters">${r.meters.map(x=>`<div class="meter"><label><span>${esc(x[0])}</span><span>${x[1]}</span></label><div class="bar"><i data-w="${x[1]}"></i></div></div>`).join('')}</div></div>
+    ${seen}
     <div class="tips"><div class="tipbox good"><h4>✦ จุดเด่น</h4><ul>${r.good.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>
     <div class="tipbox fix"><h4>⚡ ควรปรับปรุง</h4><ul>${r.fix.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div></div>
-    <div class="expert"><b>ข้อควรระวัง:</b> นี่เป็นคำแนะนำเบื้องต้นด้านดีไซน์/การจัดวางเท่านั้น ส่วนเนื้อหา เรื่องราว และความถูกต้อง ควรให้ครูหรือผู้เชี่ยวชาญตรวจอีกครั้งก่อนส่งพอร์ตจริง</div>
-    <div class="controls"><button class="chip-btn" data-act="edit" data-id="${w.id}"><span>${icon('edit')}</span>แก้ไขผลงานนี้</button><button class="chip-btn" data-act="goto" data-page="manage"><span>${icon('folder')}</span>ไปจัดการผลงาน</button></div>`;
+    <div class="expert"><b>ข้อควรระวัง:</b> ผลนี้คำนวณจากสี แสง และการจัดวางที่วัดได้จริงในภาพ แต่ไม่เข้าใจความหมายหรือเนื้อเรื่องของผลงาน ควรให้ครูหรือผู้เชี่ยวชาญตรวจเนื้อหาอีกครั้งก่อนส่งพอร์ตจริง</div>${acts}`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>$$('.meter .bar i',stage).forEach(i=>i.style.width=i.dataset.w+'%')));
   const ring=$('#ring'), num=$('#ringNum'), t0=performance.now(), d=calm()?1:1000;
   (function f(t){ const p=Math.min(1,(t-t0)/d), v=Math.round(r.overall*(1-Math.pow(1-p,3))); ring.style.setProperty('--p',v); num.textContent=v; if(p<1) requestAnimationFrame(f); })(t0);
